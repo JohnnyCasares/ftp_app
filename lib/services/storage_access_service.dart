@@ -87,6 +87,28 @@ class StorageAccessService {
     return null;
   }
 
+  /// Requests POST_NOTIFICATIONS (Android 13+).  No-op on older versions —
+  /// permission_handler returns granted automatically.  The foreground-service
+  /// notification will be silently suppressed without this permission.
+  Future<bool> requestNotificationPermission() async {
+    final status = await Permission.notification.request();
+    return status.isGranted;
+  }
+
+  /// Requests REQUEST_IGNORE_BATTERY_OPTIMIZATIONS.  Fires the system intent
+  /// (handled inside permission_handler) and returns whether the user accepted.
+  /// Without this, Android's battery optimizer may kill the foreground service.
+  Future<bool> requestBatteryOptimizationExemption() async {
+    final status = await Permission.ignoreBatteryOptimizations.request();
+    return status.isGranted;
+  }
+
+  /// True if REQUEST_IGNORE_BATTERY_OPTIMIZATIONS has already been granted, so
+  /// callers can skip showing the explanatory dialog on every Start press.
+  Future<bool> isBatteryOptimizationIgnored() async {
+    return (await Permission.ignoreBatteryOptimizations.status).isGranted;
+  }
+
   /// Builds a virtual root from the public directories that are readable
   /// without MANAGE_EXTERNAL_STORAGE.
   ///

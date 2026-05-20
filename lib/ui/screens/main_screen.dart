@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/server_config.dart';
 import '../../models/server_status.dart';
+import '../../services/foreground_task_handler.dart';
 import '../../services/network_manager.dart';
 import '../../services/server_controller.dart';
 import '../../services/settings_repository.dart';
@@ -21,11 +23,29 @@ class _MainScreenState extends State<MainScreen> {
   String? _wifiIp;
   late ServerConfig _config;
   bool _configLoaded = false;
+  bool _batteryDialogShown = false;
 
   @override
   void initState() {
     super.initState();
     _loadInitialData();
+
+    // Phase 5 / Task 6: listen for "Stop" presses coming from the foreground
+    // service notification (sent by FtpTaskHandler.onNotificationButtonPressed
+    // via FlutterForegroundTask.sendDataToMain).
+    FlutterForegroundTask.addTaskDataCallback(_onTaskData);
+  }
+
+  @override
+  void dispose() {
+    FlutterForegroundTask.removeTaskDataCallback(_onTaskData);
+    super.dispose();
+  }
+
+  void _onTaskData(Object data) {
+    if (data == FtpTaskHandler.msgStop && mounted) {
+      context.read<ServerController>().stopServer();
+    }
   }
 
   Future<void> _loadInitialData() async {
@@ -59,6 +79,51 @@ class _MainScreenState extends State<MainScreen> {
     }
 
     if (!_configLoaded) return;
+
+    // Phase 5 / Task 7: request POST_NOTIFICATIONS on Android 13+.
+    // Without it, the persistent notification is silently suppressed.
+    await controller.storageService.requestNotificationPermission();
+
+    // Phase 5 / Task 8: ask for battery-optimization exemption on the first
+    // Start press only (per-session guard; the system also no-ops if granted).
+    if (mounted && !_batteryDialogShown) {
+      final alreadyGranted =
+          await controller.storageService.isBatteryOptimizationIgnored();
+      if (!alreadyGranted && mounted) {
+        _batteryDialogShown = true;
+        final proceed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Keep server alive'),
+            content: const Text(
+              'Android may stop the FTP server in the background to save '
+              'battery. To keep the server running while the screen is off, '
+              'allow FTP Server to ignore battery optimizations.\n\n'
+              'Tap "Allow" to open the next prompt, or "Skip" to continue '
+              'without the exemption (the server may stop after a few minutes '
+              'in the background).',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Skip'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Allow'),
+              ),
+            ],
+          ),
+        );
+        if (proceed == true) {
+          await controller.storageService.requestBatteryOptimizationExemption();
+        }
+      } else {
+        _batteryDialogShown = true;
+      }
+    }
+
+    if (!mounted) return;
 
     // Phase 4: check MANAGE_EXTERNAL_STORAGE permission before starting.
     // This permission opens a system Settings screen, so we explain it first.

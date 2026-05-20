@@ -21,6 +21,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <!-- POST_NOTIFICATIONS — required on Android 13+ for the persistent notification -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- REQUEST_IGNORE_BATTERY_OPTIMIZATIONS — required by flutter_foreground_task
+         to call requestIgnoreBatteryOptimization() and restart service on Android 12+ -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
         android:label="FTP Server"

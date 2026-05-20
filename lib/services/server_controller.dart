@@ -3,6 +3,10 @@ import 'package:flutter/foundation.dart';
 import '../models/root_mode.dart';
 import '../models/server_config.dart';
 import '../models/server_status.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart'
+    show ServiceRequestFailure;
+
+import 'foreground_service_manager.dart';
 import 'ftp_engine.dart';
 import 'network_manager.dart';
 import 'storage_access_service.dart';
@@ -119,16 +123,32 @@ class ServerController extends ChangeNotifier {
         );
       }
 
+      final boundAddress = 'ftp://$ip:$boundPort';
+
+      // Phase 5: start the foreground service so Android keeps this process
+      // alive when the app is backgrounded.  The notification shows the bound
+      // address and a "Stop" action button.
+      final fgResult = await ForegroundServiceManager.startForegroundTask(
+        address: boundAddress,
+      );
+      if (fgResult is ServiceRequestFailure) {
+        // Non-fatal: log the error but keep the server running.  The FTP
+        // socket is alive; the user just won't get the persistent notification
+        // (and the OS may kill the process sooner when backgrounded).
+        debugPrint(
+            '[ServerController] ForegroundService start failed: ${fgResult.error}');
+      }
+
       _setStatus(ServerStatus(
         state: ServerState.running,
-        boundAddress: 'ftp://$ip:$boundPort',
+        boundAddress: boundAddress,
         rootDescription: rootResult.description,
         activeClients: 0,
       ));
 
       debugPrint(
           '[ServerController] FTP server started — $authMode, '
-          'root: ${rootResult.description}, address: ftp://$ip:$boundPort');
+          'root: ${rootResult.description}, address: $boundAddress');
     } catch (e) {
       _setStatus(ServerStatus(
         state: ServerState.error,
@@ -137,9 +157,13 @@ class ServerController extends ChangeNotifier {
     }
   }
 
-  /// Stops the FTP server.
+  /// Stops the FTP server and dismisses the foreground service notification.
   Future<void> stopServer() async {
     if (_status.state == ServerState.stopped) return;
+
+    // Stop the foreground service first so the notification is dismissed
+    // before we update the UI state.
+    await ForegroundServiceManager.stopForegroundTask();
 
     try {
       await _engine.stop();
