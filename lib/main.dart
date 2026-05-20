@@ -10,6 +10,9 @@ import 'services/settings_repository.dart';
 import 'ui/screens/main_screen.dart';
 import 'ui/screens/settings_screen.dart';
 
+// NOTE: App icon is the default Flutter launcher (android/app/src/main/res/mipmap-*/ic_launcher.png).
+// Replace with custom artwork via `flutter pub run flutter_launcher_icons` or by
+// dropping new ic_launcher.png files into each mipmap-* density folder.
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 

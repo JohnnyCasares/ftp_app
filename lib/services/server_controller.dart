@@ -180,4 +180,10 @@ class ServerController extends ChangeNotifier {
   /// Exposes the [StorageAccessService] so [MainScreen] can check permission
   /// status and request it before calling [startServer].
   StorageAccessService get storageService => _storageService;
+
+  /// Test-only: drive [status] directly so widget tests can render the UI
+  /// for arbitrary states without invoking the real FTP engine, foreground
+  /// service, or permission plugins (none of which work in unit-test isolates).
+  @visibleForTesting
+  void setStatusForTesting(ServerStatus newStatus) => _setStatus(newStatus);
 }

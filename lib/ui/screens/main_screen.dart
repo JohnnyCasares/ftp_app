@@ -183,7 +183,68 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ),
       );
+    } else if (status.state == ServerState.error &&
+        status.errorMessage != null) {
+      // Phase 6 / Task 3: surface the Wi-Fi-disconnected (and other) errors
+      // as a SnackBar in addition to the inline red banner, so the user gets
+      // immediate transient feedback right after tapping Start.
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(status.errorMessage!),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
     }
+  }
+
+  /// Shows the standard Material AboutDialog with supported FTP commands,
+  /// the plain-FTP security notice, and the storage-permission explanation
+  /// (DESIGN.md §7, §9.1, §9.5).
+  void _showAbout(BuildContext context) {
+    showAboutDialog(
+      context: context,
+      applicationName: 'FTP Server',
+      applicationVersion: '1.0.0',
+      applicationLegalese: 'Plain FTP server — LAN only.',
+      children: [
+        const SizedBox(height: 16),
+        Text(
+          'Security',
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Files are transferred unencrypted on your local network. '
+          'Anyone on the same Wi-Fi who knows the port can attempt to '
+          'connect. Use a strong password and stop the server when not in use.',
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Storage permission',
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          '"All files access" (MANAGE_EXTERNAL_STORAGE) lets the server '
+          'expose your full internal storage (/storage/emulated/0). If '
+          'denied, the server falls back to a virtual root over DCIM, '
+          'Pictures, Download, Documents, Music, and Movies.',
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Supported FTP commands',
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'USER, PASS, QUIT, SYST, FEAT, PWD, CWD, CDUP, LIST, NLST, '
+          'RETR, STOR, DELE, MKD, RMD, RNFR, RNTO, SIZE, MDTM, TYPE, '
+          'MODE, STRU, PASV, PORT, EPSV.\n\n'
+          'EPRT is not supported — clients fall back to EPSV automatically.',
+          style: TextStyle(fontFamily: 'monospace', fontSize: 12),
+        ),
+      ],
+    );
   }
 
   void _copyAddress(BuildContext context) {
@@ -209,6 +270,11 @@ class _MainScreenState extends State<MainScreen> {
       appBar: AppBar(
         title: const Text('FTP Server'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.info_outline),
+            tooltip: 'About',
+            onPressed: () => _showAbout(context),
+          ),
           IconButton(
             icon: const Icon(Icons.settings),
             tooltip: 'Settings',
